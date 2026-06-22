@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}Monitoring{% endblock %}
+{% block page_title %}Real-Time Monitoring{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <small class="text-muted"><i class="bi bi-arrow-clockwise me-1"></i>Auto-refreshes every 30 seconds</small>
+  <button class="btn btn-sm btn-outline-primary" onclick="refreshData()">
+    <i class="bi bi-arrow-clockwise me-1"></i>Refresh Now
+  </button>
+</div>
+
+<!-- Live AP Metrics -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-activity me-2 text-primary"></i>Live Access Point Metrics</h6>
+    <span class="badge bg-success-subtle text-success border border-success-subtle" id="poll-status">
+      <i class="bi bi-circle-fill me-1" style="font-size:0.5rem"></i>SNMP Polling Active
+    </span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle" id="ap-monitor-table">
+        <thead class="table-light">
+          <tr>
+            <th>AP Name</th><th>Building</th><th>Status</th>
+            <th>Clients</th><th>Channel Util</th><th>Uptime</th><th>Last Polled</th>
+          </tr>
+        </thead>
+        <tbody id="ap-monitor-body">
+          {% for ap in access_points %}
+          <tr>
+            <td><a href="{{ url_for('access_points.detail', ap_id=ap.id) }}" class="fw-semibold text-decoration-none">{{ ap.ap_name }}</a></td>
+            <td class="small text-muted">{{ ap.building or '—' }}</td>
+            <td>
+              <span class="badge bg-{{ ap.get_status_color() }}-subtle text-{{ ap.get_status_color() }} border border-{{ ap.get_status_color() }}-subtle">
+                <i class="bi bi-circle-fill me-1" style="font-size:0.45rem"></i>{{ ap.status | title }}
+              </span>
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <span class="fw-semibold">{{ ap.client_count or 0 }}</span>
+                <div class="progress" style="height:5px;width:50px">
+                  <div class="progress-bar bg-primary" style="width:{{ ((ap.client_count or 0)/50*100)|int }}%"></div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height:6px;max-width:80px">
+                  <div class="progress-bar {% if (ap.channel_utilization or 0) > 75 %}bg-danger{% elif (ap.channel_utilization or 0) > 50 %}bg-warning{% else %}bg-success{% endif %}"
+                       style="width:{{ ap.channel_utilization or 0 }}%"></div>
+                </div>
+                <small>{{ "%.1f"|format(ap.channel_utilization or 0) }}%</small>
+              </div>
+            </td>
+            <td class="small">{{ ap.get_uptime_formatted() }}</td>
+            <td class="small text-muted">{{ ap.last_polled.strftime('%H:%M:%S') if ap.last_polled else 'Never' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center py-5 text-muted">No access points registered.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Event Log -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-0 py-3">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-journal-code me-2 text-info"></i>Recent Network Events (Last 50)</h6>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive" style="max-height:400px;overflow-y:auto">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light sticky-top">
+          <tr><th>Timestamp</th><th>AP</th><th>Event</th><th>Severity</th><th>MAC</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          {% for log in recent_logs %}
+          <tr>
+            <td class="text-muted small text-nowrap">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '' }}</td>
+            <td class="small">{{ log.access_point.ap_name if log.access_point else '—' }}</td>
+            <td><span class="badge bg-secondary small">{{ log.event_type | replace('_', ' ') }}</span></td>
+            <td>
+              <span class="badge {% if log.severity == 'critical' %}bg-danger{% elif log.severity == 'warning' %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %} small">
+                {{ log.severity }}
+              </span>
+            </td>
+            <td class="small"><code>{{ log.mac_address or '—' }}</code></td>
+            <td class="small text-muted">{{ (log.description or '')[:60] }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center py-4 text-muted">No events logged.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function refreshData() {
+  fetch('/monitoring/live-data')
+    .then(r => r.json())
+    .then(d => {
+      // In production update the table rows dynamically;
+      // simple reload keeps the page fresh
+      location.reload();
+    }).catch(() => {});
+}
+setInterval(refreshData, 30000);
+</script>
+{% endblock %}

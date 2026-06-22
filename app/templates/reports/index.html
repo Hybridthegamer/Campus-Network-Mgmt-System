@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Reports{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i>Generate Report</h6>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('reports.generate') }}">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Report Type</label>
+            <select name="report_type" class="form-select" id="reportType">
+              <option value="ap_uptime">AP Uptime &amp; Status Report</option>
+              <option value="bandwidth">Bandwidth Usage Report</option>
+              <option value="auth_log">Authentication Log Report</option>
+              <option value="alert_summary">Alert Summary Report</option>
+            </select>
+          </div>
+          <div class="mb-3" id="dateRangeSection">
+            <label class="form-label fw-semibold small">Date Range</label>
+            <div class="row g-2">
+              <div class="col-6">
+                <input type="date" name="date_from" class="form-control form-control-sm" placeholder="From">
+              </div>
+              <div class="col-6">
+                <input type="date" name="date_to" class="form-control form-control-sm" placeholder="To">
+              </div>
+            </div>
+            <small class="text-muted">Leave blank for last 7 days</small>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold small">Export Format</label>
+            <div class="d-flex gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="format" value="csv" id="fmtCsv" checked>
+                <label class="form-check-label" for="fmtCsv">
+                  <i class="bi bi-filetype-csv me-1 text-success"></i>CSV
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="format" value="pdf" id="fmtPdf" {% if not reportlab_available %}disabled{% endif %}>
+                <label class="form-check-label {% if not reportlab_available %}text-muted{% endif %}" for="fmtPdf">
+                  <i class="bi bi-filetype-pdf me-1 text-danger"></i>PDF
+                  {% if not reportlab_available %}<small>(install reportlab)</small>{% endif %}
+                </label>
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-download me-2"></i>Generate &amp; Download
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-info-circle me-2 text-info"></i>Available Reports</h6>
+      </div>
+      <div class="list-group list-group-flush">
+        <div class="list-group-item py-3">
+          <div class="d-flex gap-3">
+            <div class="rounded-3 p-2 bg-success bg-opacity-10 align-self-start">
+              <i class="bi bi-router fs-5 text-success"></i>
+            </div>
+            <div>
+              <div class="fw-semibold">AP Uptime &amp; Status Report</div>
+              <small class="text-muted">Lists all access points with their current status, uptime, connected client counts, and channel utilization. Useful for capacity planning and SLA verification.</small>
+            </div>
+          </div>
+        </div>
+        <div class="list-group-item py-3">
+          <div class="d-flex gap-3">
+            <div class="rounded-3 p-2 bg-primary bg-opacity-10 align-self-start">
+              <i class="bi bi-bar-chart-fill fs-5 text-primary"></i>
+            </div>
+            <div>
+              <div class="fw-semibold">Bandwidth Usage Report</div>
+              <small class="text-muted">Shows per-user upload/download totals against policy caps for the selected period. Identifies top consumers and users who exceeded their bandwidth quota.</small>
+            </div>
+          </div>
+        </div>
+        <div class="list-group-item py-3">
+          <div class="d-flex gap-3">
+            <div class="rounded-3 p-2 bg-warning bg-opacity-10 align-self-start">
+              <i class="bi bi-shield-check fs-5 text-warning"></i>
+            </div>
+            <div>
+              <div class="fw-semibold">Authentication Log Report</div>
+              <small class="text-muted">Timestamped record of all 802.1X authentication successes and failures within the selected period. Essential for security auditing and detecting brute-force patterns.</small>
+            </div>
+          </div>
+        </div>
+        <div class="list-group-item py-3">
+          <div class="d-flex gap-3">
+            <div class="rounded-3 p-2 bg-danger bg-opacity-10 align-self-start">
+              <i class="bi bi-bell fs-5 text-danger"></i>
+            </div>
+            <div>
+              <div class="fw-semibold">Alert Summary Report</div>
+              <small class="text-muted">Summary of all network alerts generated in the period, grouped by type and severity. Tracks system health incidents and mean time to acknowledge (MTTA).</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Hide date range for AP uptime (not date-filtered)
+document.getElementById('reportType').addEventListener('change', function() {
+  document.getElementById('dateRangeSection').style.display =
+    this.value === 'ap_uptime' ? 'none' : '';
+});
+if (document.getElementById('reportType').value === 'ap_uptime') {
+  document.getElementById('dateRangeSection').style.display = 'none';
+}
+</script>
+{% endblock %}

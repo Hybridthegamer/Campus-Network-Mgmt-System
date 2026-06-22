@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}{% if edit_mode %}Edit AP{% else %}Provision AP{% endif %}{% endblock %}
+{% block page_title %}{% if edit_mode %}Edit Access Point{% else %}Provision Access Point{% endif %}{% endblock %}
+{% block content %}
+<div class="mb-3">
+  <a href="{{ url_for('access_points.index') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back
+  </a>
+</div>
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-router me-2 text-primary"></i>
+          {% if edit_mode %}Edit AP: {{ ap.ap_name }}{% else %}New Access Point Configuration{% endif %}
+        </h6>
+      </div>
+      <div class="card-body">
+        <form method="POST" novalidate>
+          <div class="row g-3">
+            {% if not edit_mode %}
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">AP Name <span class="text-danger">*</span></label>
+              <input type="text" name="ap_name" class="form-control" placeholder="e.g. AP-ACAD-01" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">MAC Address <span class="text-danger">*</span></label>
+              <input type="text" name="mac_address" class="form-control" placeholder="AA:BB:CC:DD:EE:FF" pattern="^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">IP Address <span class="text-danger">*</span></label>
+              <input type="text" name="ip_address" class="form-control" placeholder="192.168.10.1" required>
+            </div>
+            {% else %}
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">IP Address</label>
+              <input type="text" class="form-control" value="{{ ap.ip_address }}" disabled>
+            </div>
+            {% endif %}
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Building</label>
+              <select name="building" class="form-select">
+                <option value="">Select Building</option>
+                <option value="Academic Block" {% if edit_mode and ap.building == 'Academic Block' %}selected{% endif %}>Academic Block</option>
+                <option value="Administrative Block" {% if edit_mode and ap.building == 'Administrative Block' %}selected{% endif %}>Administrative Block</option>
+                <option value="Hostel Block" {% if edit_mode and ap.building == 'Hostel Block' %}selected{% endif %}>Hostel Block</option>
+                <option value="Library" {% if edit_mode and ap.building == 'Library' %}selected{% endif %}>Library</option>
+                <option value="Sports Complex" {% if edit_mode and ap.building == 'Sports Complex' %}selected{% endif %}>Sports Complex</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold small">Floor</label>
+              <input type="text" name="floor" class="form-control" placeholder="e.g. G, 1, 2" value="{{ ap.floor if edit_mode else '' }}">
+            </div>
+            <div class="col-md-9">
+              <label class="form-label fw-semibold small">Location Description</label>
+              <input type="text" name="location" class="form-control" placeholder="e.g. Lecture Hall B, Near main entrance" value="{{ ap.location if edit_mode else '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">SSID</label>
+              <input type="text" name="ssid" class="form-control" placeholder="CampusNet" value="{{ ap.ssid if edit_mode else '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">VLAN ID</label>
+              <input type="number" name="vlan_id" class="form-control" min="1" max="4094" value="{{ ap.vlan_id if edit_mode else '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small">2.4 GHz Channel</label>
+              <select name="channel_24ghz" class="form-select">
+                <option value="">Auto</option>
+                {% for ch in [1, 6, 11] %}
+                <option value="{{ ch }}" {% if edit_mode and ap.channel_24ghz == ch %}selected{% endif %}>{{ ch }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small">5 GHz Channel</label>
+              <select name="channel_5ghz" class="form-select">
+                <option value="">Auto</option>
+                {% for ch in [36, 40, 44, 48, 149, 153, 157, 161] %}
+                <option value="{{ ch }}" {% if edit_mode and ap.channel_5ghz == ch %}selected{% endif %}>{{ ch }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small">TX Power (dBm)</label>
+              <select name="tx_power" class="form-select">
+                <option value="">Auto</option>
+                {% for p in [10, 14, 17, 20, 23] %}
+                <option value="{{ p }}" {% if edit_mode and ap.tx_power == p %}selected{% endif %}>{{ p }} dBm</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Firmware Version</label>
+              <input type="text" name="firmware_version" class="form-control" placeholder="e.g. 8.10.185.0" value="{{ ap.firmware_version if edit_mode else '' }}">
+            </div>
+            <div class="col-12 mt-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-circle me-1"></i>{% if edit_mode %}Save Changes{% else %}Provision AP{% endif %}
+              </button>
+              <a href="{{ url_for('access_points.index') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block title %}Bandwidth{% endblock %}
+{% block page_title %}Bandwidth Management{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <!-- Policies Column -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-sliders me-2 text-primary"></i>Bandwidth Policies</h6>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for policy in policies %}
+          <li class="list-group-item py-3 px-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold">{{ policy.policy_name }}</div>
+                <small class="text-muted">
+                  <i class="bi bi-arrow-up-circle me-1 text-success"></i>{{ policy.upload_cap_mbps }} Mbps ↑
+                  <i class="bi bi-arrow-down-circle ms-2 me-1 text-primary"></i>{{ policy.download_cap_mbps }} Mbps ↓
+                </small>
+                {% if policy.description %}<div class="text-muted mt-1" style="font-size:0.75rem">{{ policy.description }}</div>{% endif %}
+                {% if policy.target_role %}<span class="badge bg-secondary mt-1" style="font-size:0.65rem">{{ policy.target_role }}</span>{% endif %}
+              </div>
+              <div class="d-flex flex-column align-items-end gap-1">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle small">P{{ policy.priority }}</span>
+                {% if current_user.is_super_admin() %}
+                <form method="POST" action="{{ url_for('bandwidth.delete_policy', policy_id=policy.id) }}"
+                      onsubmit="return confirm('Delete policy {{ policy.policy_name }}?')">
+                  <button class="btn btn-sm btn-outline-danger py-0 px-1"><i class="bi bi-trash" style="font-size:0.75rem"></i></button>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+          </li>
+          {% else %}
+          <li class="list-group-item text-center py-4 text-muted">No policies defined.</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% if current_user.is_admin() %}
+      <div class="card-footer bg-white border-top py-3">
+        <button class="btn btn-sm btn-primary w-100" data-bs-toggle="collapse" data-bs-target="#addPolicyForm">
+          <i class="bi bi-plus-circle me-1"></i>Add Policy
+        </button>
+        <div class="collapse mt-3" id="addPolicyForm">
+          <form method="POST" action="{{ url_for('bandwidth.add_policy') }}">
+            <div class="mb-2">
+              <input type="text" name="policy_name" class="form-control form-control-sm" placeholder="Policy Name" required>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <input type="number" name="upload_cap_mbps" class="form-control form-control-sm" placeholder="Upload Mbps" step="0.5" required>
+              </div>
+              <div class="col-6">
+                <input type="number" name="download_cap_mbps" class="form-control form-control-sm" placeholder="Download Mbps" step="0.5" required>
+              </div>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <select name="priority" class="form-select form-select-sm">
+                  {% for i in range(1, 11) %}<option value="{{ i }}" {% if i == 5 %}selected{% endif %}>Priority {{ i }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="col-6">
+                <select name="target_role" class="form-select form-select-sm">
+                  <option value="">All Roles</option>
+                  <option value="student">Student</option>
+                  <option value="staff">Staff</option>
+                  <option value="guest">Guest</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+            <textarea name="description" class="form-control form-control-sm mb-2" rows="2" placeholder="Description (optional)"></textarea>
+            <button type="submit" class="btn btn-sm btn-success w-100">Save Policy</button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Usage Table Column -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-graph-up me-2 text-primary"></i>Bandwidth Usage Records</h6>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr><th>User</th><th>Upload</th><th>Download</th><th>Total</th><th>Cap</th><th>Status</th><th>Period</th></tr>
+            </thead>
+            <tbody>
+              {% for rec in usage_records %}
+              <tr>
+                <td class="small fw-semibold">
+                  {% if rec.user %}{{ rec.user.full_name }}
+                  <div class="text-muted fw-normal">{{ rec.user.username }}</div>
+                  {% else %}<span class="text-muted">Unknown</span>{% endif %}
+                </td>
+                <td class="small">{{ rec.get_upload_mb() }} MB</td>
+                <td class="small">{{ rec.get_download_mb() }} MB</td>
+                <td class="small fw-semibold">{{ rec.get_total_mb() }} MB</td>
+                <td>
+                  {% if rec.cap_download_mbps %}
+                  <div class="progress" style="height:6px;width:80px">
+                    <div class="progress-bar {% if rec.get_usage_percent() >= 100 %}bg-danger{% elif rec.get_usage_percent() >= 90 %}bg-warning{% else %}bg-success{% endif %}"
+                         style="width:{{ [rec.get_usage_percent(), 100]|min }}%"></div>
+                  </div>
+                  <small class="text-muted">{{ rec.cap_download_mbps }} Mbps</small>
+                  {% else %}—{% endif %}
+                </td>
+                <td>
+                  {% if rec.is_cap_exceeded %}
+                  <span class="badge bg-danger">Cap Exceeded</span>
+                  {% else %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">Normal</span>
+                  {% endif %}
+                </td>
+                <td class="small text-muted">
+                  {{ rec.period_start.strftime('%m-%d') if rec.period_start else '' }} –
+                  {{ rec.period_end.strftime('%m-%d') if rec.period_end else '' }}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="7" class="text-center py-5 text-muted">No usage records yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% if usage_pagination.pages > 1 %}
+      <div class="card-footer bg-white border-0">
+        <nav><ul class="pagination pagination-sm mb-0 justify-content-center">
+          {% if usage_pagination.has_prev %}<li class="page-item"><a class="page-link" href="{{ url_for('bandwidth.index', page=usage_pagination.prev_num) }}">«</a></li>{% endif %}
+          {% for p in usage_pagination.iter_pages() %}{% if p %}<li class="page-item {% if p == usage_pagination.page %}active{% endif %}"><a class="page-link" href="{{ url_for('bandwidth.index', page=p) }}">{{ p }}</a></li>{% endif %}{% endfor %}
+          {% if usage_pagination.has_next %}<li class="page-item"><a class="page-link" href="{{ url_for('bandwidth.index', page=usage_pagination.next_num) }}">»</a></li>{% endif %}
+        </ul></nav>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

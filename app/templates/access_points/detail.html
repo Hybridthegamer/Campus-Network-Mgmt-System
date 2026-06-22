@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}{{ ap.ap_name }}{% endblock %}
+{% block page_title %}{{ ap.ap_name }}{% endblock %}
+{% block content %}
+<div class="mb-3">
+  <a href="{{ url_for('access_points.index') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back to Access Points
+  </a>
+  {% if current_user.is_admin() %}
+  <a href="{{ url_for('access_points.edit', ap_id=ap.id) }}" class="btn btn-sm btn-outline-primary ms-2">
+    <i class="bi bi-pencil me-1"></i>Edit AP
+  </a>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- AP Info Card -->
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 py-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-3 p-2 bg-primary bg-opacity-10">
+            <i class="bi bi-router fs-4 text-primary"></i>
+          </div>
+          <div>
+            <h6 class="mb-0 fw-bold">{{ ap.ap_name }}</h6>
+            <span class="badge bg-{{ ap.get_status_color() }}">{{ ap.status | title }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <table class="table table-sm table-borderless mb-0">
+          <tr><td class="text-muted fw-semibold w-40">IP Address</td><td><code>{{ ap.ip_address }}</code></td></tr>
+          <tr><td class="text-muted fw-semibold">MAC Address</td><td><code>{{ ap.mac_address }}</code></td></tr>
+          <tr><td class="text-muted fw-semibold">Building</td><td>{{ ap.building or '—' }}</td></tr>
+          <tr><td class="text-muted fw-semibold">Floor</td><td>{{ ap.floor or '—' }}</td></tr>
+          <tr><td class="text-muted fw-semibold">Location</td><td>{{ ap.location or '—' }}</td></tr>
+          <tr><td class="text-muted fw-semibold">SSID</td><td>{{ ap.ssid or '—' }}</td></tr>
+          <tr><td class="text-muted fw-semibold">VLAN</td><td>{{ ap.vlan_id or '—' }}</td></tr>
+          <tr><td class="text-muted fw-semibold">Firmware</td><td>{{ ap.firmware_version or '—' }}</td></tr>
+          <tr><td class="text-muted fw-semibold">Uptime</td><td>{{ ap.get_uptime_formatted() }}</td></tr>
+          <tr><td class="text-muted fw-semibold">2.4 GHz Ch</td><td>{{ ap.channel_24ghz or '—' }}</td></tr>
+          <tr><td class="text-muted fw-semibold">5 GHz Ch</td><td>{{ ap.channel_5ghz or '—' }}</td></tr>
+          <tr><td class="text-muted fw-semibold">TX Power</td><td>{{ ap.tx_power or '—' }} dBm</td></tr>
+          <tr><td class="text-muted fw-semibold">Last Polled</td><td>{{ ap.last_polled.strftime('%Y-%m-%d %H:%M:%S') if ap.last_polled else 'Never' }}</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <!-- Metrics -->
+  <div class="col-lg-7">
+    <div class="row g-3">
+      <div class="col-6">
+        <div class="card border-0 shadow-sm text-center py-4">
+          <div class="fs-1 fw-bold text-primary">{{ ap.client_count or 0 }}</div>
+          <div class="text-muted small">Connected Clients</div>
+          <div class="text-muted" style="font-size:0.7rem">Max: 50</div>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="card border-0 shadow-sm text-center py-4">
+          <div class="fs-1 fw-bold {% if (ap.channel_utilization or 0) > 75 %}text-danger{% elif (ap.channel_utilization or 0) > 50 %}text-warning{% else %}text-success{% endif %}">
+            {{ "%.1f"|format(ap.channel_utilization or 0) }}%
+          </div>
+          <div class="text-muted small">Channel Utilization</div>
+          <div class="progress mt-2 mx-3" style="height:6px">
+            <div class="progress-bar bg-{% if (ap.channel_utilization or 0) > 75 %}danger{% elif (ap.channel_utilization or 0) > 50 %}warning{% else %}success{% endif %}"
+                 style="width:{{ ap.channel_utilization or 0 }}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Recent Alerts for this AP -->
+    <div class="card border-0 shadow-sm mt-3">
+      <div class="card-header bg-white border-0 py-2">
+        <h6 class="mb-0 small fw-semibold"><i class="bi bi-bell me-2 text-danger"></i>Recent Alerts</h6>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for alert in recent_alerts %}
+          <li class="list-group-item py-2 px-3 small">
+            <span class="badge bg-{{ alert.get_severity_color() }} me-2">{{ alert.severity }}</span>
+            {{ alert.message[:60] }}{% if alert.message|length > 60 %}…{% endif %}
+            <small class="text-muted ms-1">{{ alert.created_at.strftime('%m-%d %H:%M') if alert.created_at else '' }}</small>
+          </li>
+          {% else %}
+          <li class="list-group-item text-center py-3 text-muted small">No alerts for this AP</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Logs -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-0 py-3">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-journal-text me-2 text-info"></i>Recent Network Logs</h6>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr><th>Timestamp</th><th>Event</th><th>Severity</th><th>MAC</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          {% for log in recent_logs %}
+          <tr>
+            <td class="text-muted small">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '' }}</td>
+            <td><span class="badge bg-secondary">{{ log.event_type | replace('_', ' ') }}</span></td>
+            <td>
+              <span class="badge {% if log.severity == 'critical' %}bg-danger{% elif log.severity == 'warning' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                {{ log.severity }}
+              </span>
+            </td>
+            <td class="small"><code>{{ log.mac_address or '—' }}</code></td>
+            <td class="small text-muted">{{ (log.description or '')[:70] }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center py-4 text-muted">No log entries for this AP</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

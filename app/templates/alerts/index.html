@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}Alerts{% endblock %}
+{% block page_title %}Alerts{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    {% if unacked_count > 0 %}
+    <span class="badge bg-danger fs-6">{{ unacked_count }} Unacknowledged</span>
+    {% else %}
+    <span class="badge bg-success fs-6">All Clear</span>
+    {% endif %}
+  </div>
+  {% if current_user.is_admin() %}
+  <button class="btn btn-outline-secondary btn-sm" id="ackAllBtn">
+    <i class="bi bi-check2-all me-1"></i>Acknowledge All
+  </button>
+  {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <select name="severity" class="form-select form-select-sm">
+          <option value="">All Severities</option>
+          <option value="critical" {% if severity_filter == 'critical' %}selected{% endif %}>Critical</option>
+          <option value="high" {% if severity_filter == 'high' %}selected{% endif %}>High</option>
+          <option value="medium" {% if severity_filter == 'medium' %}selected{% endif %}>Medium</option>
+          <option value="low" {% if severity_filter == 'low' %}selected{% endif %}>Low</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="type" class="form-select form-select-sm">
+          <option value="">All Types</option>
+          <option value="ap_offline" {% if type_filter == 'ap_offline' %}selected{% endif %}>AP Offline</option>
+          <option value="rogue_ap" {% if type_filter == 'rogue_ap' %}selected{% endif %}>Rogue AP</option>
+          <option value="bandwidth_exceeded" {% if type_filter == 'bandwidth_exceeded' %}selected{% endif %}>Bandwidth Exceeded</option>
+          <option value="high_utilization" {% if type_filter == 'high_utilization' %}selected{% endif %}>High Utilization</option>
+          <option value="auth_failure_flood" {% if type_filter == 'auth_failure_flood' %}selected{% endif %}>Auth Failure Flood</option>
+          <option value="ap_recovered" {% if type_filter == 'ap_recovered' %}selected{% endif %}>AP Recovered</option>
+          <option value="bandwidth_warning" {% if type_filter == 'bandwidth_warning' %}selected{% endif %}>Bandwidth Warning</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="acknowledged" class="form-select form-select-sm">
+          <option value="">All States</option>
+          <option value="no" {% if ack_filter == 'no' %}selected{% endif %}>Unacknowledged</option>
+          <option value="yes" {% if ack_filter == 'yes' %}selected{% endif %}>Acknowledged</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+        <a href="{{ url_for('alerts.index') }}" class="btn btn-sm btn-outline-secondary ms-1">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr><th>Severity</th><th>Type</th><th>Message</th><th>AP</th><th>Created</th><th>Status</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          {% for alert in alerts %}
+          <tr class="{% if not alert.is_acknowledged and alert.severity == 'critical' %}table-danger{% elif not alert.is_acknowledged and alert.severity == 'high' %}table-warning{% endif %}" id="alert-row-{{ alert.id }}">
+            <td>
+              <span class="badge {% if alert.severity == 'critical' %}bg-danger{% elif alert.severity == 'high' %}bg-warning text-dark{% elif alert.severity == 'medium' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                {{ alert.severity | upper }}
+              </span>
+            </td>
+            <td class="small fw-semibold">{{ alert.alert_type | replace('_', ' ') | title }}</td>
+            <td class="small">{{ alert.message[:90] }}{% if alert.message|length > 90 %}…{% endif %}</td>
+            <td class="small text-muted">
+              {% if alert.access_point %}
+              <a href="{{ url_for('access_points.detail', ap_id=alert.ap_id) }}" class="text-decoration-none">{{ alert.access_point.ap_name }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td class="small text-muted">{{ alert.created_at.strftime('%Y-%m-%d %H:%M') if alert.created_at else '' }}</td>
+            <td>
+              {% if alert.is_acknowledged %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Acknowledged</span>
+              {% else %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Active</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if not alert.is_acknowledged and current_user.is_admin() %}
+              <button class="btn btn-sm btn-outline-success py-0 px-2 ack-btn" data-id="{{ alert.id }}">
+                <i class="bi bi-check2"></i>
+              </button>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center py-5 text-muted"><i class="bi bi-check-circle fs-4 d-block mb-2 text-success"></i>No alerts found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if pagination.pages > 1 %}
+  <div class="card-footer bg-white border-0">
+    <nav><ul class="pagination pagination-sm mb-0 justify-content-center">
+      {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="{{ url_for('alerts.index', page=pagination.prev_num, severity=severity_filter, type=type_filter, acknowledged=ack_filter) }}">«</a></li>{% endif %}
+      {% for p in pagination.iter_pages() %}{% if p %}<li class="page-item {% if p == pagination.page %}active{% endif %}"><a class="page-link" href="{{ url_for('alerts.index', page=p, severity=severity_filter, type=type_filter, acknowledged=ack_filter) }}">{{ p }}</a></li>{% endif %}{% endfor %}
+      {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="{{ url_for('alerts.index', page=pagination.next_num, severity=severity_filter, type=type_filter, acknowledged=ack_filter) }}">»</a></li>{% endif %}
+    </ul></nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.querySelectorAll('.ack-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const id = this.dataset.id;
+    fetch(`/alerts/${id}/acknowledge`, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(r => r.json()).then(d => {
+        if (d.success) {
+          const row = document.getElementById(`alert-row-${id}`);
+          row.classList.remove('table-danger', 'table-warning');
+          this.closest('td').innerHTML = '';
+          row.querySelector('td:nth-child(6)').innerHTML = '<span class="badge bg-success-subtle text-success border border-success-subtle">Acknowledged</span>';
+        }
+      });
+  });
+});
+
+document.getElementById('ackAllBtn')?.addEventListener('click', function() {
+  if (!confirm('Acknowledge all active alerts?')) return;
+  fetch('/alerts/acknowledge-all', { method: 'POST' })
+    .then(r => r.json()).then(d => { if (d.success) location.reload(); });
+});
+</script>
+{% endblock %}
