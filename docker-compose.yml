@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: wcnms_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: wcnms_db
+      MYSQL_USER: wcnms
+      MYSQL_PASSWORD: wcnms_pass
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "wcnms", "-pwcnms_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: wcnms_web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      FLASK_ENV: production
+      SECRET_KEY: "${SECRET_KEY:-please-change-this-secret-key}"
+      DATABASE_URL: mysql+pymysql://wcnms:wcnms_pass@db/wcnms_db
+      MAIL_SERVER: "${MAIL_SERVER:-}"
+      MAIL_USERNAME: "${MAIL_USERNAME:-}"
+      MAIL_PASSWORD: "${MAIL_PASSWORD:-}"
+      SNMP_COMMUNITY: "${SNMP_COMMUNITY:-public}"
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+    command: >
+      sh -c "flask --app run init-db && gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 run:app"
+
+volumes:
+  mysql_data:

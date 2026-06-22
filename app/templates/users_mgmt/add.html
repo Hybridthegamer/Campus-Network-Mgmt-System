@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Add User{% endblock %}
+{% block page_title %}Add User{% endblock %}
+{% block content %}
+<div class="mb-3">
+  <a href="{{ url_for('users_mgmt.index') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back
+  </a>
+</div>
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-person-plus me-2 text-primary"></i>Create New User Account</h6>
+      </div>
+      <div class="card-body">
+        <form method="POST" novalidate>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Username <span class="text-danger">*</span></label>
+              <input type="text" name="username" class="form-control" placeholder="jdoe" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Email <span class="text-danger">*</span></label>
+              <input type="email" name="email" class="form-control" placeholder="j.doe@university.edu" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold small">Full Name <span class="text-danger">*</span></label>
+              <input type="text" name="full_name" class="form-control" placeholder="John Doe" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Password <span class="text-danger">*</span></label>
+              <input type="password" name="password" class="form-control" placeholder="Min 8 characters" required minlength="8">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Role <span class="text-danger">*</span></label>
+              <select name="role" class="form-select" required>
+                <option value="read_only">Read Only</option>
+                <option value="admin">Admin</option>
+                {% if current_user.is_super_admin() %}
+                <option value="super_admin">Super Admin</option>
+                {% endif %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Department</label>
+              <input type="text" name="department" class="form-control" placeholder="e.g. ICT, Engineering">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Phone</label>
+              <input type="tel" name="phone" class="form-control" placeholder="+234 800 000 0000">
+            </div>
+            <div class="col-12 mt-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-circle me-1"></i>Create User
+              </button>
+              <a href="{{ url_for('users_mgmt.index') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="card border-0 shadow-sm mt-3">
+      <div class="card-body py-3">
+        <h6 class="fw-semibold small mb-2"><i class="bi bi-info-circle me-1 text-info"></i>Role Permissions</h6>
+        <ul class="list-unstyled mb-0 small text-muted">
+          <li><span class="badge bg-danger me-1">Super Admin</span> Full system access, delete operations, system settings</li>
+          <li class="mt-1"><span class="badge bg-primary me-1">Admin</span> Manage APs, users, policies; acknowledge alerts; generate reports</li>
+          <li class="mt-1"><span class="badge bg-secondary me-1">Read Only</span> View-only access to all dashboards and reports</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}Access Points{% endblock %}
+{% block page_title %}Access Points{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div></div>
+  {% if current_user.is_admin() %}
+  <a href="{{ url_for('access_points.add') }}" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i>Provision AP
+  </a>
+  {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <input type="text" name="search" class="form-control form-control-sm" placeholder="Search AP name, IP, location…" value="{{ search }}">
+      </div>
+      <div class="col-md-2">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">All Statuses</option>
+          <option value="online" {% if status_filter == 'online' %}selected{% endif %}>Online</option>
+          <option value="degraded" {% if status_filter == 'degraded' %}selected{% endif %}>Degraded</option>
+          <option value="offline" {% if status_filter == 'offline' %}selected{% endif %}>Offline</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="building" class="form-select form-select-sm">
+          <option value="">All Buildings</option>
+          {% for b in buildings %}
+          <option value="{{ b }}" {% if building_filter == b %}selected{% endif %}>{{ b }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+        <a href="{{ url_for('access_points.index') }}" class="btn btn-sm btn-outline-secondary ms-1">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>AP Name</th><th>IP Address</th><th>Building / Floor</th>
+            <th>Status</th><th>SSID</th><th>Clients</th><th>Util %</th>
+            <th>Channel</th><th>Last Polled</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ap in access_points %}
+          <tr>
+            <td>
+              <a href="{{ url_for('access_points.detail', ap_id=ap.id) }}" class="fw-semibold text-decoration-none">{{ ap.ap_name }}</a>
+            </td>
+            <td><code class="small">{{ ap.ip_address }}</code></td>
+            <td class="text-muted small">{{ ap.building or '—' }}{% if ap.floor %} / F{{ ap.floor }}{% endif %}</td>
+            <td>
+              <span class="badge bg-{{ ap.get_status_color() }}-subtle text-{{ ap.get_status_color() }} border border-{{ ap.get_status_color() }}-subtle">
+                {{ ap.status | title }}
+              </span>
+            </td>
+            <td class="small">{{ ap.ssid or '—' }}</td>
+            <td>{{ ap.client_count or 0 }}</td>
+            <td>
+              <div class="progress" style="height:5px;width:60px">
+                <div class="progress-bar {% if (ap.channel_utilization or 0) > 75 %}bg-danger{% elif (ap.channel_utilization or 0) > 50 %}bg-warning{% else %}bg-success{% endif %}"
+                     style="width:{{ ap.channel_utilization or 0 }}%"></div>
+              </div>
+              <small>{{ "%.0f"|format(ap.channel_utilization or 0) }}%</small>
+            </td>
+            <td class="small">{{ ap.channel_24ghz or '—' }} / {{ ap.channel_5ghz or '—' }}</td>
+            <td class="text-muted small">{{ ap.last_polled.strftime('%Y-%m-%d %H:%M') if ap.last_polled else 'Never' }}</td>
+            <td>
+              <div class="d-flex gap-1">
+                <a href="{{ url_for('access_points.detail', ap_id=ap.id) }}" class="btn btn-xs btn-outline-primary btn-sm py-0 px-2">
+                  <i class="bi bi-eye"></i>
+                </a>
+                {% if current_user.is_admin() %}
+                <a href="{{ url_for('access_points.edit', ap_id=ap.id) }}" class="btn btn-sm btn-outline-secondary py-0 px-2">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                {% endif %}
+                {% if current_user.is_super_admin() %}
+                <form method="POST" action="{{ url_for('access_points.delete', ap_id=ap.id) }}"
+                      onsubmit="return confirm('Delete AP {{ ap.ap_name }}?')">
+                  <button class="btn btn-sm btn-outline-danger py-0 px-2"><i class="bi bi-trash"></i></button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="10" class="text-center py-5 text-muted">No access points found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if pagination.pages > 1 %}
+  <div class="card-footer bg-white border-0">
+    <nav>
+      <ul class="pagination pagination-sm mb-0 justify-content-center">
+        {% if pagination.has_prev %}
+        <li class="page-item"><a class="page-link" href="{{ url_for('access_points.index', page=pagination.prev_num, search=search, status=status_filter, building=building_filter) }}">«</a></li>
+        {% endif %}
+        {% for p in pagination.iter_pages() %}
+          {% if p %}
+          <li class="page-item {% if p == pagination.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('access_points.index', page=p, search=search, status=status_filter, building=building_filter) }}">{{ p }}</a>
+          </li>
+          {% endif %}
+        {% endfor %}
+        {% if pagination.has_next %}
+        <li class="page-item"><a class="page-link" href="{{ url_for('access_points.index', page=pagination.next_num, search=search, status=status_filter, building=building_filter) }}">»</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
